@@ -918,3 +918,99 @@ class CustodyFeeQuoteResponse(BaseModel):
         "包含结算窗口内实际持有过展品的全部保管人",
     )
     total: Decimal = Field(description="总计：各保管人已舍入小计之和")
+
+
+# ---------------------------------------------------------------------------
+# 封签事件撤回影响预演（/api/v1/seal-chain/withdrawal-preview）
+# ---------------------------------------------------------------------------
+
+
+class WithdrawalPreviewRequest(BaseModel):
+    """封签事件撤回影响预演请求：事件链与 1～20 个互异候选下标。
+
+    预演分别假设只撤回（移除）其中一个候选事件，观察链校验结果的变化；
+    候选下标对应 events 中的位置（从 0 开始），必须互异且不越界。
+    """
+
+    events: List[Event] = Field(default_factory=list)
+    candidate_indices: List[int] = Field(
+        description="候选撤回事件下标（从 0 开始，对应 events 中的位置）；"
+        "数量 1～20 个，互异且不得越界，重复或越界返回 422",
+        min_length=1,
+        max_length=20,
+    )
+
+
+class RemovedEvent(BaseModel):
+    """被移除事件：单列展示，不参与任何差异计算。"""
+
+    index: int = Field(description="被移除事件在原链中的下标（从 0 开始）")
+    type: EventType = Field(description="被移除事件类型")
+    timestamp: datetime = Field(description="被移除事件时间")
+    seal_id: Optional[str] = Field(description="被移除事件的封签编号；无则为 null")
+    custodian: Optional[str] = Field(description="被移除事件的保管人；无则为 null")
+
+
+class WithdrawalFinalState(BaseModel):
+    """移除后剩余链校验结束时的最终状态（原链下标语境）。"""
+
+    valid: bool = Field(description="移除后的剩余链是否无任何违规")
+    sealed: bool = Field(description="处理完剩余全部有效事件后是否处于封装状态")
+    final_custodian: Optional[str] = Field(description="移除后的最终保管人")
+    current_seal: Optional[str] = Field(description="移除后的当前有效封签编号，未封装时为 null")
+
+
+class WithdrawalDiffItem(BaseModel):
+    """一条状态翻转差异，index 已映射回原链。
+
+    resolved（由 violation 变为 ok）与 introduced（由 ok 变为 violation）
+    共用本结构：resolved 携带原违规原因，introduced 携带移除后校验出的新违规原因。
+    """
+
+    index: int = Field(description="状态翻转事件在原链中的下标（从 0 开始，非移除位置）")
+    type: EventType = Field(description="该事件类型")
+    reason: str = Field(
+        description="resolved 时为基线中该事件的违规原因；introduced 时为移除后新校验出的违规原因"
+    )
+
+
+class WithdrawalPlan(BaseModel):
+    """单个候选撤回方案的预演结果（仅移除该一个事件）。"""
+
+    candidate_index: int = Field(description="本方案移除的候选事件在原链中的下标（从 0 开始）")
+    removed: RemovedEvent = Field(description="被移除事件，单列展示；绝不出现在 resolved/introduced 中")
+    final_state: WithdrawalFinalState = Field(description="移除后剩余链的最终状态")
+    effective_event_count: int = Field(
+        description="移除后剩余链中的有效（status=ok）事件数；推荐排序首要指标"
+    )
+    violation_count: int = Field(
+        description="移除后剩余链的最终违规事件数（violations 数，不含被移除事件）"
+    )
+    validation: ValidateResponse = Field(
+        description="移除后剩余链复用单链校验器的完整结果；逐事件 index 已映射回原链，"
+        "被移除事件不在其中，因此 events 长度为原链长度减 1"
+    )
+    resolved: List[WithdrawalDiffItem] = Field(
+        default_factory=list,
+        description="相对基线由 violation 变为 ok 的事件（原链下标升序），不含被移除事件",
+    )
+    introduced: List[WithdrawalDiffItem] = Field(
+        default_factory=list,
+        description="相对基线由 ok 变为 violation 的事件（原链下标升序），不含被移除事件",
+    )
+    recommended: bool = Field(description="本方案是否为推荐方案（恰有一个方案为 true）")
+
+
+class WithdrawalPreviewResponse(BaseModel):
+    """封签事件撤回影响预演响应：基线 + 逐方案预演 + 推荐方案。"""
+
+    event_count: int = Field(description="原链事件总数（基线 events 数）")
+    baseline: ValidateResponse = Field(
+        description="不移除任何事件时，现有单链校验器对原链的校验结果"
+    )
+    plans: List[WithdrawalPlan] = Field(
+        description="逐候选撤回方案的预演结果，顺序与请求 candidate_indices 的输入顺序一致"
+    )
+    recommended_candidate_index: Optional[int] = Field(
+        description="推荐方案移除的候选下标（原链下标）；无方案（候选为空）时为 null",
+    )
