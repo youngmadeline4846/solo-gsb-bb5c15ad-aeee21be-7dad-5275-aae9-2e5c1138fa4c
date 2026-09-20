@@ -918,3 +918,67 @@ class CustodyFeeQuoteResponse(BaseModel):
         "包含结算窗口内实际持有过展品的全部保管人",
     )
     total: Decimal = Field(description="总计：各保管人已舍入小计之和")
+
+
+# ---------------------------------------------------------------------------
+# 封签事件撤回影响预演（/api/v1/seal-chain/withdrawal-preview）
+# ---------------------------------------------------------------------------
+
+
+class WithdrawalPreviewRequest(BaseModel):
+    """撤回影响预演请求：事件链与 1～20 个互异候选下标。"""
+
+    events: List[Event] = Field(default_factory=list)
+    candidates: List[int] = Field(
+        min_length=1,
+        max_length=20,
+        description="候选撤回事件下标（从 0 开始，对应 events 中的位置）；"
+        "1～20 个，互异且不得越界，否则 422",
+    )
+
+    @model_validator(mode="after")
+    def _candidates_must_be_valid(self) -> "WithdrawalPreviewRequest":
+        seen: set[int] = set()
+        for candidate in self.candidates:
+            if candidate in seen:
+                raise ValueError(f"候选下标不可重复：{candidate}")
+            seen.add(candidate)
+            if candidate < 0 or candidate >= len(self.events):
+                raise ValueError(
+                    f"候选下标越界：{candidate}（事件数 {len(self.events)}，"
+                    f"合法范围 0～{len(self.events) - 1}）"
+                )
+        return self
+
+
+class WithdrawalScenario(BaseModel):
+    """单个撤回方案的预演结果：只移除一个候选事件后的校验与差异。"""
+
+    removed_index: int = Field(description="被移除事件在原链中的下标（从 0 开始）")
+    removed_event: Event = Field(description="被移除事件回显（单列，不混入 resolved/introduced）")
+    validation: ValidateResponse = Field(
+        description="移除该事件后复用单链校验器的结果；events / violations 的下标已映射回原链"
+    )
+    resolved: List[int] = Field(
+        default_factory=list,
+        description="基线为 violation、移除后变为 ok 的原链事件下标（升序）；不含被移除事件",
+    )
+    introduced: List[int] = Field(
+        default_factory=list,
+        description="基线为 ok、移除后变为 violation 的原链事件下标（升序）；不含被移除事件",
+    )
+    ok_count: int = Field(description="移除后 status=ok 的有效事件数")
+    violation_count: int = Field(description="移除后的违规事件数（最终违规数）")
+
+
+class WithdrawalPreviewResponse(BaseModel):
+    """撤回影响预演响应：基线 + 逐方案结果 + 推荐方案。"""
+
+    baseline: ValidateResponse = Field(description="原链基线校验结果（结构同 /validate）")
+    scenarios: List[WithdrawalScenario] = Field(
+        description="逐候选方案的预演结果，按候选输入顺序"
+    )
+    recommended: int = Field(
+        description="推荐方案在 scenarios 中的下标（从 0 开始）：依次最大化有效事件数、"
+        "最小化 introduced 数、最小化最终违规数，仍并列时按候选输入顺序取首项"
+    )

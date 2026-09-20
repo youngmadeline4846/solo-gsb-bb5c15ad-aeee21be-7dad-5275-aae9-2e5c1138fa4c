@@ -1,6 +1,6 @@
 # 封签链校验 API（Seal Chain Validation）
 
-用于展品运输交接场景的封签链校验服务。客户端提交按时间排列的 **封装 / 交接 / 开封 / 重封** 事件序列，服务按状态机逐事件校验，返回最终保管人、当前封签、逐事件状态及全部违规事件的位置与原因；同时提供**批量封签占用检查**接口，对多条事件链做跨链 `seal_id` 占用冲突检测；提供**离线片段合并重建**接口，将同一 `chain_id` 的多个离线片段按 `event_id` 去重、按 `prev_event_id` 重建唯一序列后再校验；提供**开封暴露审计**接口，以有效开封 / 重封事件推导开封区间，相对授权开窗窗口做区间差，输出未授权暴露时长；提供**交接计划符合性审计**接口，把有效封装 / 重封 / 交接事件提取为实际到任记录，与按序计划节点做保管人相同、顺序不交叉的全局最优匹配；提供**温控责任审计**接口，以有效封装 / 重封 / 交接事件生成保管人半开区间，把按前值保持得到的越界温度区间与保管人区间求交、跨交接点拆分，按保管人汇总高温 / 低温秒数、最大偏差与未归属时长；提供**分段校验**接口，把超长事件链拆成若干段依次校验，段间通过带签名的续传令牌传递状态机状态，结果与整链一次校验完全一致；提供**封签库存分配规划**接口，复用批量校验排除已占用编号后，在"未过期且保管人允许"的候选边上做一对一全局最优分配（最大化满足记录数、最小化过期余量总秒数、按待用记录输入顺序与封签编号字典序确定唯一方案）；并提供**污染传播溯源**接口，以各链有效事件生成保管人持有区间，把同一保管人名下的跨链区间重叠识别为接触，从污染源出发按"源已污染且接触仍在持续的最早时刻"级联计算每条链的最早污染时刻、直接来源与完整传播路径；并提供**保管容量并发审计**接口，以各链有效事件生成截至 `audit_until` 的保管人半开持有区间，按保管人扫描区间起止边界（同刻先结束后开始）统计并发链数，合并相邻且活跃链集合相同的超限段，输出超限分段与各保管人超限秒数、并发峰值；并提供**保管计费试算**接口，以有效事件生成截至 `settlement_until` 的保管人半开区间，按保管人提供的互不重叠生效费率窗口（每小时十进制费率）切分计费，逐段返回秒数、适用费率与未舍入金额，无覆盖费率的时段列入 `unpriced`，每位保管人的分段金额先精确求和再按 ROUND_HALF_UP 舍入到分，总计由已舍入小计相加。
+用于展品运输交接场景的封签链校验服务。客户端提交按时间排列的 **封装 / 交接 / 开封 / 重封** 事件序列，服务按状态机逐事件校验，返回最终保管人、当前封签、逐事件状态及全部违规事件的位置与原因；同时提供**批量封签占用检查**接口，对多条事件链做跨链 `seal_id` 占用冲突检测；提供**离线片段合并重建**接口，将同一 `chain_id` 的多个离线片段按 `event_id` 去重、按 `prev_event_id` 重建唯一序列后再校验；提供**开封暴露审计**接口，以有效开封 / 重封事件推导开封区间，相对授权开窗窗口做区间差，输出未授权暴露时长；提供**交接计划符合性审计**接口，把有效封装 / 重封 / 交接事件提取为实际到任记录，与按序计划节点做保管人相同、顺序不交叉的全局最优匹配；提供**温控责任审计**接口，以有效封装 / 重封 / 交接事件生成保管人半开区间，把按前值保持得到的越界温度区间与保管人区间求交、跨交接点拆分，按保管人汇总高温 / 低温秒数、最大偏差与未归属时长；提供**分段校验**接口，把超长事件链拆成若干段依次校验，段间通过带签名的续传令牌传递状态机状态，结果与整链一次校验完全一致；提供**封签库存分配规划**接口，复用批量校验排除已占用编号后，在"未过期且保管人允许"的候选边上做一对一全局最优分配（最大化满足记录数、最小化过期余量总秒数、按待用记录输入顺序与封签编号字典序确定唯一方案）；并提供**污染传播溯源**接口，以各链有效事件生成保管人持有区间，把同一保管人名下的跨链区间重叠识别为接触，从污染源出发按"源已污染且接触仍在持续的最早时刻"级联计算每条链的最早污染时刻、直接来源与完整传播路径；并提供**保管容量并发审计**接口，以各链有效事件生成截至 `audit_until` 的保管人半开持有区间，按保管人扫描区间起止边界（同刻先结束后开始）统计并发链数，合并相邻且活跃链集合相同的超限段，输出超限分段与各保管人超限秒数、并发峰值；并提供**保管计费试算**接口，以有效事件生成截至 `settlement_until` 的保管人半开区间，按保管人提供的互不重叠生效费率窗口（每小时十进制费率）切分计费，逐段返回秒数、适用费率与未舍入金额，无覆盖费率的时段列入 `unpriced`，每位保管人的分段金额先精确求和再按 ROUND_HALF_UP 舍入到分，总计由已舍入小计相加；并提供**封签事件撤回影响预演**接口，先计算原链基线，再对 1～20 个互异候选下标分别只移除一个事件并复用单链校验，所有事件下标映射回原链，逐方案给出移除后的最终状态、由 violation 变为 ok 的 `resolved` 与由 ok 变为 violation 的 `introduced`（被移除事件单列、不混入差异），并按"最大化有效事件数 → 最小化 introduced 数 → 最小化最终违规数 → 候选输入顺序"推荐方案。
 
 ## 校验规则（状态机）
 
@@ -1199,6 +1199,133 @@ curl -s http://localhost:8000/api/v1/seal-chain/custody-fee-quote \
 # 4 小时 × 0.005 = 0.020 → 小计 0.02（先精确求和，再 ROUND_HALF_UP 到分）
 ```
 
+### `POST /api/v1/seal-chain/withdrawal-preview`
+
+封签事件撤回影响预演。在单链状态机校验的基础上，回答"**如果撤回某一个事件，整条链的校验结果会如何变化、撤回哪个最值得**"。处理分四步：
+
+1. **计算基线**：对原事件链调用现有单链校验器，结果原样保留在 `baseline`；
+2. **逐方案重演**：对每个候选下标（`candidates`，**1～20 个、互异且不越界**，否则 `422`）分别**只移除该事件**，对缩短后的事件链再次复用同一套单链校验器；
+3. **下标映射回原链**：被移除事件不占位，响应中所有事件下标（`validation.events` / `validation.violations` / `resolved` / `introduced`）均为**原链下标**；被移除事件在 `removed_index` / `removed_event` 中**单列**，不混入差异；
+4. **对比与推荐**：逐方案对比基线——由 `violation` 变为 `ok` 的列入 `resolved`，由 `ok` 变为 `violation` 的列入 `introduced`（均不含被移除事件），并统计移除后的有效事件数 `ok_count` 与最终违规数 `violation_count`；推荐方案依次**最大化有效事件数 → 最小化 introduced 数 → 最小化最终违规数**，仍并列时**按候选输入顺序取首项**（`recommended` 为 `scenarios` 下标）。
+
+- `events[]`：原事件链，结构同 `/validate`；允许空列表（此时任何候选下标均越界，返回 `422`）
+- `candidates[]`：候选撤回事件下标（从 0 开始，对应 `events` 中的位置）；1～20 个，重复或越界（含负数）返回 `422`
+- 链本身存在状态机违规**不影响**本接口返回 `200`，违规情况体现在 `baseline` 与各方案的 `validation` 中
+
+**请求体**
+
+```json
+{
+  "events": [
+    {"type": "seal",   "timestamp": "2026-09-19T10:00:00Z", "seal_id": "S001", "custodian": "Alice"},
+    {"type": "unseal", "timestamp": "2026-09-19T11:00:00Z"},
+    {"type": "reseal", "timestamp": "2026-09-19T12:00:00Z", "seal_id": "S001", "custodian": "Alice"}
+  ],
+  "candidates": [0, 2]
+}
+```
+
+**响应示例**（对应上例：基线中下标 2 因复用 `S001` 违规；移除下标 0 会让后续事件连锁违规，移除下标 2 则全链恢复有效，故推荐后者）
+
+```json
+{
+  "baseline": {
+    "valid": false,
+    "sealed": false,
+    "final_custodian": "Alice",
+    "current_seal": null,
+    "events": [
+      {"index": 0, "type": "seal", "status": "ok", "reason": null, "cross_chain_conflict": false},
+      {"index": 1, "type": "unseal", "status": "ok", "reason": null, "cross_chain_conflict": false},
+      {"index": 2, "type": "reseal", "status": "violation",
+       "reason": "封签 S001 已被使用，不得复用", "cross_chain_conflict": false}
+    ],
+    "violations": [
+      {"index": 2, "reason": "封签 S001 已被使用，不得复用"}
+    ]
+  },
+  "scenarios": [
+    {
+      "removed_index": 0,
+      "removed_event": {"type": "seal", "timestamp": "2026-09-19T10:00:00Z",
+                        "seal_id": "S001", "custodian": "Alice"},
+      "validation": {
+        "valid": false,
+        "sealed": false,
+        "final_custodian": null,
+        "current_seal": null,
+        "events": [
+          {"index": 1, "type": "unseal", "status": "violation",
+           "reason": "未封装状态下不得开封", "cross_chain_conflict": false},
+          {"index": 2, "type": "reseal", "status": "violation",
+           "reason": "未曾封装，不能执行重封（reseal），请使用封装（seal）",
+           "cross_chain_conflict": false}
+        ],
+        "violations": [
+          {"index": 1, "reason": "未封装状态下不得开封"},
+          {"index": 2, "reason": "未曾封装，不能执行重封（reseal），请使用封装（seal）"}
+        ]
+      },
+      "resolved": [],
+      "introduced": [1],
+      "ok_count": 0,
+      "violation_count": 2
+    },
+    {
+      "removed_index": 2,
+      "removed_event": {"type": "reseal", "timestamp": "2026-09-19T12:00:00Z",
+                        "seal_id": "S001", "custodian": "Alice"},
+      "validation": {
+        "valid": true,
+        "sealed": false,
+        "final_custodian": "Alice",
+        "current_seal": null,
+        "events": [
+          {"index": 0, "type": "seal", "status": "ok", "reason": null, "cross_chain_conflict": false},
+          {"index": 1, "type": "unseal", "status": "ok", "reason": null, "cross_chain_conflict": false}
+        ],
+        "violations": []
+      },
+      "resolved": [],
+      "introduced": [],
+      "ok_count": 2,
+      "violation_count": 0
+    }
+  ],
+  "recommended": 1
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `baseline` | 原链基线校验结果（结构同 `/validate`） |
+| `scenarios[]` | 逐候选方案的预演结果，按**候选输入顺序**返回 |
+| `scenarios[].removed_index` | 被移除事件在原链中的下标（从 0 开始） |
+| `scenarios[].removed_event` | 被移除事件回显（单列，不混入 `resolved` / `introduced`） |
+| `scenarios[].validation` | 移除该事件后复用单链校验器的结果（结构同 `/validate`）；`events` / `violations` 的下标已映射回原链 |
+| `scenarios[].resolved[]` | 基线为 `violation`、移除后变为 `ok` 的原链事件下标（升序）；不含被移除事件 |
+| `scenarios[].introduced[]` | 基线为 `ok`、移除后变为 `violation` 的原链事件下标（升序）；不含被移除事件 |
+| `scenarios[].ok_count` | 移除后 `status=ok` 的有效事件数 |
+| `scenarios[].violation_count` | 移除后的违规事件数（最终违规数） |
+| `recommended` | 推荐方案在 `scenarios` 中的下标（从 0 开始）：依次最大化有效事件数、最小化 `introduced` 数、最小化最终违规数，仍并列时按候选输入顺序取首项 |
+
+### 撤回影响预演接口示例调用
+
+```bash
+curl -s http://localhost:8000/api/v1/seal-chain/withdrawal-preview \
+  -H 'Content-Type: application/json' \
+  -d '{"events": [
+        {"type": "seal", "timestamp": "2026-09-19T10:00:00Z",
+         "seal_id": "S001", "custodian": "Alice"},
+        {"type": "unseal", "timestamp": "2026-09-19T11:00:00Z"},
+        {"type": "reseal", "timestamp": "2026-09-19T12:00:00Z",
+         "seal_id": "S001", "custodian": "Alice"}
+      ],
+      "candidates": [0, 2]}'
+# 基线下标 2 复用 S001 违规；移除下标 2 后全链有效（ok_count=2），
+# 移除下标 0 会连锁引入 2 个违规 → recommended = 1（移除下标 2 的方案）
+```
+
 > 服务默认监听宿主机 **8000** 端口（容器内固定 `0.0.0.0:8000`，可用 `HOST_PORT` 覆盖），以上示例中的 `http://localhost:8000` 即该端口。
 
 ## 本地开发与测试
@@ -1214,7 +1341,7 @@ uvicorn app.main:app --reload --port 8000
 ```
 app/
   main.py        # FastAPI 入口与路由
-  models.py      # 请求 / 响应模型（单链、批量、合并重建、开封暴露审计、交接计划审计、温控责任审计、分段校验、库存分配规划、污染传播溯源、保管容量并发审计与保管计费试算）
+  models.py      # 请求 / 响应模型（单链、批量、合并重建、开封暴露审计、交接计划审计、温控责任审计、分段校验、库存分配规划、污染传播溯源、保管容量并发审计、保管计费试算与撤回影响预演）
   validator.py   # 单链状态机校验核心
   timeline.py    # 时间线公共层（status=ok 事件过滤并保留全链下标 / 半开区间 covered-gap 分割 / 时区可比性检查）
   batch.py       # 批量封签占用检查（跨链冲突）
@@ -1227,6 +1354,7 @@ app/
   contamination.py # 污染传播溯源（保管人持有区间 / 接触识别 / 级联最早污染时刻与传播路径，复用 timeline 公共层）
   custody.py     # 保管容量并发审计（持有区间 / 扫描线同刻先结束后开始 / 超限段合并与保管人汇总，复用 timeline 公共层）
   fee.py         # 保管计费试算（保管区间按费率边界切分 / 十进制精确计价 / ROUND_HALF_UP 小计舍入，复用 timeline 公共层）
+  withdrawal.py  # 封签事件撤回影响预演（基线 / 逐候选移除复用单链校验 / 下标映射回原链 / 差异对比与推荐）
 tests/
   test_validator.py
   test_batch.py
@@ -1240,6 +1368,7 @@ tests/
   test_contamination.py
   test_custody.py
   test_fee.py
+  test_withdrawal.py
 Dockerfile
 docker-compose.yml
 requirements.txt

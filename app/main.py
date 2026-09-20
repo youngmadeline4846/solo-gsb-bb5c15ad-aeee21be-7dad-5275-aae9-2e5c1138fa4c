@@ -34,15 +34,18 @@ from .models import (
     TemperatureAuditResponse,
     ValidateRequest,
     ValidateResponse,
+    WithdrawalPreviewRequest,
+    WithdrawalPreviewResponse,
 )
 from .reconcile import reconcile
 from .temperature import TemperatureAuditError, audit_temperature
 from .validator import validate_events
+from .withdrawal import preview_withdrawal
 
 app = FastAPI(
     title="封签链校验 API",
     description="用于展品运输交接场景的封签链状态机校验服务",
-    version="1.10.0",
+    version="1.11.0",
 )
 
 
@@ -248,3 +251,18 @@ def custody_fee_quote(request: CustodyFeeQuoteRequest) -> CustodyFeeQuoteRespons
         return quote_custody_fee(request)
     except CustodyFeeQuoteError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post(
+    "/api/v1/seal-chain/withdrawal-preview",
+    response_model=WithdrawalPreviewResponse,
+    tags=["seal-chain"],
+    summary="封签事件撤回影响预演：逐一移除候选事件并对比基线",
+)
+def withdrawal_preview(request: WithdrawalPreviewRequest) -> WithdrawalPreviewResponse:
+    """先计算原链基线，再对每个候选下标（1～20 个，互异且不越界）分别只移除
+    该事件并复用单链校验；响应中所有事件下标均映射回原链，被移除事件单列且
+    不混入 resolved（violation→ok）/ introduced（ok→violation）差异。
+    推荐方案依次最大化有效事件数、最小化 introduced 数、最小化最终违规数，
+    仍并列时按候选输入顺序取首项。候选下标重复或越界返回 422。"""
+    return preview_withdrawal(request)
